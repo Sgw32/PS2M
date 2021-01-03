@@ -1,0 +1,1741 @@
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE  1
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+                      00001 ;; mkl modifications to original "ps2m" v1.5 code
+                      00002 ;; VER: 1.5.03 (20.03.08) ;http://www.iki.f/mkl/ps2mhiiri627/
+                      00003 ;; Rev.A 21.03.08, only comments added, .hex file not changed
+                      00004 ;;
+                      00005 ;; ps2m functionality "POWER" removed for (my) reading clarity.
+                      00006 ;; The mouse "POWER" switching feature was in some older version
+                      00007 ;; circuits of mouse adapter, as described in ps2m docs.
+                      00008 ;;
+                      00009 ;; Copy the output to amiga right mouse button signal line
+                      00010 ;; from RB3 also to RA6 and RA7, so connected together they
+                      00011 ;; can sink more current. One A1200 didn't recognise right
+                      00012 ;; mouse button press, because the voltage remained too high
+                      00013 ;; at around 0.3V. Now I can measure 0.16V with one A500+ board.
+                      00014 ;; BUT: Please note, that the middle mouse button is not boosted,
+                      00015 ;; and it similar POTentiometer input to right mouse button input,
+                      00016 ;; so if you have a three button mouse, the middle button may not
+                      00017 ;; be recognised as pressed by some Amigas. The POT inputs can
+                      00018 ;; give out about 20 mA of current, maybe even leading to destruction
+                      00019 ;; of the PIC, because its output will be overloaded.
+                      00020 ;; if BOOSTRMB != 0, the feature will be compiled in to the code.
+                      00021 ;;
+                      00022 ;; I bought a dozen of PIC16LF87 SO-18 chips.
+                      00023 ;; if PIC16F87_STUFF != 0, initialize a PIC16LF87 to 4 MHz int. osc.
+                      00024 
+                      00025 
+                      00026 ; $VER: 1.5 (08.07.01)
+                      00027 ; COPYRIGHT (C) 2001 RDC SOFTWARE
+                      00028 ; Distributed under GPL license - see gpl.txt
+                      00029 
+                      00030 ; This is a part of ps2m package,
+                      00031 ; you can obtain latest version at Aminet:
+                      00032 
+                      00033 ; ftp://ftp.wustl.edu/pub/aminet/hard/hack/ps2m.lha
+                      00034 ; ftp://ftp.wustl.edu/pub/aminet/hard/hack/ps2m.readme
+                      00035 
+                      00036 ; Use picasm by Timo Rossi to compile.
+                      00037 ; Amiga version of picasm is included in devpic package:
+                      00038 
+                      00039 ; ftp://ftp.wustl.edu/pub/aminet/dev/cross/devpic.lha
+                      00040 ; ftp://ftp.wustl.edu/pub/aminet/dev/cross/devpic.readme
+                      00041 
+                      00042 ; For any questions: rdc@cyberlan.mtu-net.ru
+                      00043 
+Error[181]  : Unknown opcode: "device"
+                      00044         device  pic16f876
+                      00045         include "16f876.i"
+                      00001 ;
+                      00002 ; pic16f876.h
+                      00003 ;
+                      00004 ; definitions for PIC16F876 registers
+                      00005 ;
+                      00006 
+Error[1102]  : Parser error: syntax error
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE  2
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+                      00007         if ~defined(__16F876)
+Error[101]  : ERROR: (this include file is for PIC16F876)
+                      00008           error "this include file is for PIC16F876"
+Error[125]  : Illegal condition: "ENDIF"
+                      00009         endif
+                      00010 
+                      00011 ; Page 0 
+  00000000            00012 INDF    equ     00h
+  00000001            00013 TMR0    equ     01h
+  00000001            00014 RTCC    equ     TMR0
+  00000002            00015 PCL     equ     02h
+  00000003            00016 STATUS  equ     03h
+  00000004            00017 FSR     equ     04h     
+  00000005            00018 PORTA   equ     05h
+  00000006            00019 PORTB   equ     06h
+  00000007            00020 PORTC   equ     07h
+  00000008            00021 EEDATA  equ     08h
+  00000009            00022 EEADR   equ     09h
+  0000000A            00023 PCLATH  equ     0ah 
+  0000000B            00024 INTCON  equ     0bh
+  00000012            00025 T2CON   equ     12h
+  00000015            00026 CCPR1L  equ     15h
+  00000017            00027 CCP1CON equ     17h
+                      00028 
+                      00029 ; Page 1
+                      00030 
+  00000001            00031 OPTIO   equ     01h
+  00000005            00032 TRISA   equ     05h
+  00000006            00033 TRISB   equ     06h
+  00000007            00034 TRISC   equ     07h
+  00000008            00035 EECON1  equ     08h
+  00000009            00036 EECON2  equ     09h
+  00000012            00037 PR2     equ     12h
+  0000001F            00038 ADCON1  equ     1fh
+                      00039 
+                      00040 ;
+                      00041 ; STATUS bits
+                      00042 ;
+  00000007            00043 IRP     equ     07h
+  00000006            00044 RP1     equ     06h
+  00000005            00045 RP0     equ     05h
+  00000004            00046 TO      equ     04h
+  00000003            00047 PD      equ     03h
+  00000002            00048 Z       equ     02h
+  00000001            00049 DC      equ     01h
+  00000000            00050 C       equ     00h
+                      00051 
+                      00052 ;
+                      00053 ; INTCON bits
+                      00054 ;
+  00000007            00055 GIE     equ     7
+  00000006            00056 EEIE    equ     6
+  00000005            00057 RTIE    equ     5
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE  3
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+  00000004            00058 INTE    equ     4
+  00000003            00059 RBIE    equ     3
+  00000002            00060 RTIF    equ     2
+  00000001            00061 INTF    equ     1
+  00000000            00062 RBIF    equ     0
+                      00063 
+                      00064 ;
+                      00065 ; OPTION bits
+                      00066 ;
+  00000007            00067 RBPU    equ     7
+  00000006            00068 INTEDG  equ     6
+  00000005            00069 RTS     equ     5
+  00000004            00070 RTE     equ     4
+  00000003            00071 PSA     equ     3
+  00000002            00072 PS2     equ     2
+  00000001            00073 PS1     equ     1
+  00000000            00074 PS0     equ     0
+                      00075 
+                      00076 ;
+                      00077 ; EECON1 bits
+                      00078 ;
+  00000004            00079 EEIF    equ     4
+  00000003            00080 WRERR   equ     3
+  00000002            00081 WREN    equ     2
+  00000001            00082 EWR     equ     1
+  00000000            00083 ERD     equ     0
+                      00084 
+                      00085 ;
+                      00086 ; 'direction' flags
+                      00087 ;
+  00000000            00088 W       equ     0
+  00000000            00089 w       equ     0
+  00000001            00090 F       equ     1
+  00000001            00091 f       equ     1
+                      00092 
+                      00046         include "macros.i"
+                      00001 mov     macro
+                      00002         if      streq("\1","w")|streq("\1","W")
+                      00003         movwf   \2
+                      00004         else
+                      00005         if      (chrval("\1",1)==0x27)|((chrval("\1",0)>0x2F)&(chrval("\1",0)<0x3A))
+                      00006         movlw   \1
+                      00007         else
+                      00008         movf    \1,w
+                      00009         endif
+                      00010         if      ~(streq("\2","w")|streq("\2","W"))
+                      00011         movwf   \2
+                      00012         endif
+                      00013         endif
+                      00014         endm
+                      00015 
+                      00016 gid     macro
+                      00017         bcf     INTCON,7
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE  4
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+                      00018         endm
+                      00019 
+                      00020 gie     macro
+                      00021         bsf     INTCON,7
+                      00022         endm
+                      00023 
+                      00024 bsf1    macro
+                      00025         data1
+                      00026         bsf     \1,\2
+                      00027         data0
+                      00028         endm
+                      00029 
+                      00030 bcf1    macro
+                      00031         data1
+                      00032         bcf     \1,\2
+                      00033         data0
+                      00034         endm
+                      00035 
+                      00036 skipc   macro   ; skip if carry
+                      00037         btfss   STATUS,C
+                      00038         endm
+                      00039 
+                      00040 skipnc  macro   ; skip if not carry
+                      00041         btfsc   STATUS,C
+                      00042         endm
+                      00043 
+                      00044 skipz   macro   ; skip if zero
+                      00045         btfss   STATUS,Z
+                      00046         endm
+                      00047 
+                      00048 skipnz  macro   ; skip if not zero
+                      00049         btfsc   STATUS,Z
+                      00050         endm
+                      00051 
+                      00052 skpos   macro   ; skip if reg >= 0 (reg)
+                      00053         btfsc   \1,7
+                      00054         endm
+                      00055 
+                      00056 skneg   macro   ; skip if reg < 0 (reg)
+                      00057         btfss   \1,7
+                      00058         endm
+                      00059 
+Warning[203]: Found opcode in column 1: "setc"
+Error[127]  : Too many arguments.
+0000   1403           00060 setc    macro   ; set carry
+0001   1403           00061         bsf     STATUS,C
+Error[145]  : Unmatched ENDM.
+                      00062         endm
+                      00063 
+Warning[203]: Found opcode in column 1: "clrc"
+Error[127]  : Too many arguments.
+0002   1003           00064 clrc    macro   ; clear carry
+0003   1003           00065         bcf     STATUS,C
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE  5
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+Error[145]  : Unmatched ENDM.
+                      00066         endm
+                      00067 
+Warning[203]: Found opcode in column 1: "bc"
+Error[113]  : Symbol not previously defined: "macro"
+0004   1803 2800      00068 bc      macro   ;branch if carry
+                      00069         skipnc
+0006   1803               M         btfsc   STATUS,C
+Error[1102]  : Parser error: syntax error
+                      00070         goto    \1
+Error[145]  : Unmatched ENDM.
+                      00071         endm
+                      00072 
+Warning[203]: Found opcode in column 1: "bnc"
+Error[113]  : Symbol not previously defined: "macro"
+0007   1C03 2800      00073 bnc     macro   ;branch if no carry
+                      00074         skipc
+0009   1C03               M         btfss   STATUS,C
+Error[1102]  : Parser error: syntax error
+                      00075         goto    \1
+Error[145]  : Unmatched ENDM.
+                      00076         endm
+                      00077 
+Warning[203]: Found opcode in column 1: "bz"
+Error[113]  : Symbol not previously defined: "macro"
+000A   1903 2800      00078 bz      macro   ;branch if zero
+                      00079         skipnz
+000C   1903               M         btfsc   STATUS,Z
+Error[1102]  : Parser error: syntax error
+                      00080         goto    \1
+Error[145]  : Unmatched ENDM.
+                      00081         endm
+                      00082 
+Warning[203]: Found opcode in column 1: "bnz"
+Error[113]  : Symbol not previously defined: "macro"
+000D   1D03 2800      00083 bnz     macro   ;branch if not zero
+                      00084         skipz
+000F   1D03               M         btfss   STATUS,Z
+Error[1102]  : Parser error: syntax error
+                      00085         goto    \1
+Error[145]  : Unmatched ENDM.
+                      00086         endm
+                      00087 
+                      00088 bwz     macro   ;branch if w = 0
+                      00089         addlw   0
+                      00090         skipnz
+                      00091         goto    \1
+                      00092         endm
+                      00093 
+                      00094 bwnz    macro   ;branch if w <> 0
+                      00095         addlw   0
+                      00096         skipz
+                      00097         goto    \1
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE  6
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+                      00098         endm
+                      00099 
+                      00100 retz    macro
+                      00101         skipnz
+                      00102         return
+                      00103         endm
+                      00104 
+                      00105 retnz   macro
+                      00106         skipz
+                      00107         return
+                      00108         endm
+                      00109 
+                      00110 retwz   macro
+                      00111         addlw   0
+                      00112         skipnz
+                      00113         return
+                      00114         endm
+                      00115 
+                      00116 retwnz  macro
+                      00117         addlw   0
+                      00118         skipz
+                      00119         return
+                      00120         endm
+                      00121 
+                      00122 bpos    macro   ;branch if reg >= 0 (reg,dest_addr)
+                      00123         btfss   \1,7
+                      00124         goto    \2
+                      00125         endm
+                      00126 
+                      00127 bneg    macro   ;branch if reg < 0 (reg,dest_addr)
+                      00128         btfsc   \1,7
+                      00129         goto    \2
+                      00130         endm
+                      00131 
+                      00132 brset   macro   ;branch if bit set (reg,bit,dest_addr)
+                      00133         btfsc   \1,\2
+                      00134         goto    \3
+                      00135         endm
+                      00136 
+                      00137 brclr   macro   ;branch if bit clear (reg,bit,dest_addr)
+                      00138         btfss   \1,\2
+                      00139         goto    \3
+                      00140         endm
+                      00141 
+                      00142 data0   macro
+                      00143         bcf     STATUS,RP0
+                      00144         endm
+                      00145 
+                      00146 data1   macro
+                      00147         bsf     STATUS,RP0
+                      00148         endm
+                      00149 
+                      00150 code0   macro
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE  7
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+                      00151         bcf     PCLATH,3
+                      00152         endm
+                      00153 
+                      00154 code1   macro
+                      00155         bsf     PCLATH,3
+                      00156         endm
+                      00157 
+                      00158 loop    macro
+                      00159         decfsz  \2
+                      00160         goto    \1
+                      00161         endm
+                      00162 
+                      00163 movlf   macro
+                      00164         movlw   \1
+                      00165         movwf   \2
+                      00166         endm
+                      00167 
+                      00168 movff   macro
+                      00169         movf    \1,w
+                      00170         movwf   \2
+                      00171         endm
+                      00172 
+Warning[203]: Found opcode in column 1: "movfw"
+Error[113]  : Symbol not previously defined: "macro"
+0010   0800           00173 movfw   macro
+Error[1102]  : Parser error: syntax error
+                      00174         movf    \1,w
+Error[145]  : Unmatched ENDM.
+                      00175         endm
+                      00176 
+                      00177 iorfw   macro
+                      00178         iorwf   \1,w
+                      00179         endm
+                      00180 
+                      00181 xorfw   macro
+                      00182         xorwf   \1,w
+                      00183         endm
+                      00184 
+                      00185 addfw   macro
+                      00186         addwf   \1,w
+                      00187         endm
+                      00188 
+                      00189 comfw   macro
+                      00190         comf    \1,w
+                      00191         endm
+                      00192 
+                      00193 swapfw  macro
+                      00194         swapf   \1,w
+                      00195         endm
+                      00196 
+                      00197 rrfw    macro
+                      00198         rrf     \1,w
+                      00199         endm
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE  8
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+                      00200 
+                      00201 rlfw    macro
+                      00202         rlf     \1,w
+                      00203         endm
+                      00204 
+                      00205 andlf   macro
+                      00206         movlw   \1
+                      00207         andwf   \2
+                      00208         endm
+                      00209 
+                      00210 addlf   macro
+                      00211         movlw   \1
+                      00212         addwf   \2
+                      00213         endm
+                      00214 
+                      00215 sublf   macro
+                      00216         movlw   \1
+                      00217         subwf   \2
+                      00218         endm
+                      00219 
+                      00220 cmplf   macro
+                      00221         movlw   \1
+                      00222         subwf   \2,w
+                      00223         endm
+                      00224 
+                      00225 cmpff   macro
+                      00226         movf    \1,w
+                      00227         subwf   \2,w
+                      00228         endm
+                      00229 
+                      00230 addff   macro
+                      00231         movf    \1,w
+                      00232         addwf   \2
+                      00233         endm
+                      00234 
+                      00235 subff   macro
+                      00236         movf    \1,w
+                      00237         subwf   \2
+                      00238         endm
+                      00239 
+                      00240 callw   macro
+                      00241         movlw   \2
+                      00242         call    \1
+                      00243         endm
+                      00244 
+                      00245 callf   macro
+                      00246         movf    \2,w
+                      00247         call    \1
+                      00248         endm
+                      00249 
+                      00250 call0   macro
+                      00251         bcf     PCLATH,3
+                      00252         call    \1
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE  9
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+                      00253         bsf     PCLATH,3
+                      00254         endm
+                      00255 
+                      00256 call1   macro
+                      00257         bsf     PCLATH,3
+                      00258         call    \1
+                      00259         bcf     PCLATH,3
+                      00260         endm
+                      00261 
+                      00262 call1w  macro
+                      00263         bsf     PCLATH,3
+                      00264         movlw   \2
+                      00265         call    \1
+                      00266         bcf     PCLATH,3
+                      00267         endm
+                      00268 
+                      00269 call1f  macro
+                      00270         bsf     PCLATH,3
+                      00271         movf    \2,w
+                      00272         call    \1
+                      00273         bcf     PCLATH,3
+                      00274         endm
+                      00275 
+                      00276 goto0   macro
+                      00277         bcf     PCLATH,3
+                      00278         goto    \1
+                      00279         endm
+                      00280 
+                      00281 goto1   macro
+                      00282         bsf     PCLATH,3
+                      00283         goto    \1
+                      00284         endm
+                      00285 
+Warning[203]: Found opcode in column 1: "tstf"
+Error[113]  : Symbol not previously defined: "macro"
+0011   0880           00286 tstf    macro
+Error[1102]  : Parser error: syntax error
+                      00287         movf    \1
+Error[145]  : Unmatched ENDM.
+                      00288         endm
+                      00289 
+                      00290 tstw    macro
+                      00291         addlw   0
+                      00292         endm
+                      00293 
+                      00294 clrd    macro
+                      00295         clrf    \10
+                      00296         clrf    \11
+                      00297         endm
+                      00298 
+                      00299 tstd    macro
+                      00300         movf    \10
+                      00301         skipnz
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 10
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+                      00302         movf    \11
+                      00303         endm
+                      00304 
+                      00305 incd    macro
+                      00306         incf    \10
+                      00307         skipnz
+                      00308         incf    \11
+                      00309         endm
+                      00310 
+                      00311 movld   macro
+                      00312         if      \1&255
+                      00313         movlw   \1&255
+                      00314         movwf   \20
+                      00315         else
+                      00316         clrf    \20
+                      00317         endif
+                      00318         if      (\1>>8)&255
+                      00319         if      ((\1>>8)&255)-(\1&255)
+                      00320         movlw   (\1>>8)&255
+                      00321         endif
+                      00322         movwf   \21
+                      00323         else
+                      00324         clrf    \21
+                      00325         endif
+                      00326         endm
+                      00327 
+                      00328 movcd   macro
+                      00329         movld   (\1+256),\2
+                      00330         endm
+                      00331 
+                      00332 movwd   macro
+                      00333         movwf   \10
+                      00334         clrf    \11
+                      00335         endm
+                      00336 
+                      00337 loopd   macro
+                      00338         loop    \1,\20
+                      00339         loop    \1,\21
+                      00340         endm
+                      00341 
+                      00342 movdd   macro
+                      00343         movf    \10,w
+                      00344         movwf   \20
+                      00345         movf    \11,w
+                      00346         movwf   \21
+                      00347         endm
+                      00348 
+                      00349 movtt   macro
+                      00350         movf    \10,w
+                      00351         movwf   \20
+                      00352         movf    \11,w
+                      00353         movwf   \21
+                      00354         movf    \12,w
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 11
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+                      00355         movwf   \22
+                      00356         endm
+                      00357 
+                      00358 adddd   macro
+                      00359         movf    \10,w
+                      00360         addwf   \20
+                      00361         movf    \11,w
+                      00362         btfsc   STATUS,C
+                      00363         incfsz  \11,w
+                      00364         addwf   \21
+                      00365         endm
+                      00366 
+                      00367 addfd   macro
+                      00368         movf    \1,w
+                      00369         addwf   \20
+                      00370         skipnc
+                      00371         incf    \21
+                      00372         endm
+                      00373 
+                      00374 addwd   macro
+                      00375         addwf   \10
+                      00376         skipnc
+                      00377         incf    \11
+                      00378         endm
+                      00379 
+                      00380 addld   macro
+                      00381         if      \1-1
+                      00382         movlw   \1&255
+                      00383         addwf   \20
+                      00384         skipnc
+                      00385         incf    \21
+                      00386         if      (\1>>8)&255
+                      00387         if      (((\1>>8)&255)-1)
+                      00388         movlw   (\1>>8)&255
+                      00389         addwf   \21
+                      00390         else
+                      00391         incf    \21
+                      00392         endif
+                      00393         endif
+                      00394         else
+                      00395         incf    \20
+                      00396         skipnz
+                      00397         incf    \21
+                      00398         endif
+                      00399         endm
+                      00400 
+                      00401 subdd   macro
+                      00402         movf    \10,w
+                      00403         subwf   \20
+                      00404         movf    \11,w
+                      00405         btfss   STATUS,C
+                      00406         incfsz  \11,w
+                      00407         subwf   \21
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 12
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+                      00408         endm
+                      00409 
+                      00410 subfd   macro
+                      00411         movf    \1,w
+                      00412         subwf   \20
+                      00413         skipc
+                      00414         decf    \21
+                      00415         endm
+                      00416 
+                      00417 subwd   macro
+                      00418         subwf   \10
+                      00419         skipc
+                      00420         decf    \11
+                      00421         endm
+                      00422 
+                      00423 subld   macro
+                      00424         movlw   \1&255
+                      00425         subwf   \20
+                      00426         skipc
+                      00427         decf    \21
+                      00428         if      (\1>>8)&255
+                      00429         if      (((\1>>8)&255)-1)
+                      00430         movlw   (\1>>8)&255
+                      00431         subwf   \21
+                      00432         else
+                      00433         decf    \21
+                      00434         endif
+                      00435         endif
+                      00436         endm
+                      00437 
+                      00438 rld     macro
+                      00439         rlf     \10
+                      00440         rlf     \11
+                      00441         endm
+                      00442 
+                      00443 ald     macro
+                      00444         clrc
+                      00445         rlf     \10
+                      00446         rlf     \11
+                      00447         endm
+                      00448 
+                      00449 rrd     macro
+                      00450         rrf     \11
+                      00451         rrf     \10
+                      00452         endm
+                      00453 
+                      00454 ard     macro
+                      00455         clrc
+                      00456         rrf     \11
+                      00457         rrf     \10
+                      00458         endm
+                      00459 
+                      00047 
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 13
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+                      00048 
+  00000046            00049 SPEED   equ     46
+                      00050 
+  00000123            00051 BOOSTRMB equ 123 ;;Use it
+                      00052 ;;Add current sinking capability to the right mouse button pressed
+                      00053 ;;signal line towards Amiga (D9 pin 9). It is not a normal TTL-input.
+                      00054 ;;Pins 16 (RA7) and 15 (RA6) of 18-pin PIC with internal oscillator need
+                      00055 ;;to be connected together with RB3 (PIC pin 9, D9-connector pin 9)
+                      00056 ;;PortB3 outputs Right mouse button to Amiga
+                      00057 ;;PortA6 and A7, trisb bits 6 and 7
+                      00058 
+                      00059 
+  00000123            00060 PIC16F87_STUFF equ 123;; for some PIC16LF87 chips I got.
+                      00061 
+                      00062 ; ---------
+                      00063 ; variables
+                      00064 ; ---------
+                      00065 
+0020                  00066         org     0x20
+                      00067 
+0020                  00068 memstart
+Error[181]  : Unknown opcode: "ds"
+0020                  00069 count           ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00070 recvb           ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00071 recvc           ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00072 recvd           ds      2
+Error[181]  : Unknown opcode: "ds"
+0020                  00073 recvdt          ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00074 sendata         ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00075 sendetc         ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00076 intw            ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00077 ints            ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00078 wdtp            ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00079 wdtm            ds      2
+Error[181]  : Unknown opcode: "ds"
+0020                  00080 temp1           ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00081 currbyte        ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00082 xdif            ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00083 ydif            ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00084 xdir            ds      1
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 14
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+Error[181]  : Unknown opcode: "ds"
+0020                  00085 ydir            ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00086 xspeed          ds      2
+Error[181]  : Unknown opcode: "ds"
+0020                  00087 yspeed          ds      2
+Error[181]  : Unknown opcode: "ds"
+0020                  00088 xcount          ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00089 ycount          ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00090 xtemp           ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00091 ytemp           ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00092 flags           ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00093 extflags        ds      1
+                      00094 
+Error[181]  : Unknown opcode: "ds"
+0020                  00095 byte1           ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00096 byte2           ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00097 byte3           ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00098 byte4           ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00099 zdif            ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00100 zcount          ds      1
+                      00101 
+Error[181]  : Unknown opcode: "ds"
+0020                  00102 q0              ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00103 q1              ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00104 q2              ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00105 q3              ds      1
+Error[181]  : Unknown opcode: "ds"
+0020                  00106 q4              ds      1
+                      00107 
+0000                  00108 mem_end         org     0x000
+                      00109 
+                      00110 ; ---------------
+                      00111 ; bit definitions
+                      00112 ; ---------------
+                      00113 
+  00000000            00114 fpkt1   equ     0
+  00000001            00115 fpkt2   equ     1
+  00000002            00116 fpkt3   equ     2
+  00000003            00117 fbyte   equ     3
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 15
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+  00000004            00118 fnores  equ     4
+  00000005            00119 fnofps  equ     5
+  00000006            00120 fon     equ     6
+  00000007            00121 fwheel  equ     7
+                      00122 
+  00000000            00123 ext200  equ     0
+  00000001            00124 extime  equ     1       ;ms "intellimouse explorer"
+  00000002            00125 extnso  equ     2       ;genius "netscroll optical"
+  00000003            00126 extnof  equ     3
+                      00127 ;;      if      POWER-1
+  00000004            00128 extbut  equ     4
+                      00129 ;;      endif
+                      00130 
+                      00131 ; ----------------
+                      00132 ; init PIC & mouse
+                      00133 ; ----------------
+                      00134 ;;reset vectors to address 0x0
+0000   018B           00135 start   clrf    INTCON
+0001   3001           00136         movlw   b'00000001'
+Warning[224]: Use of this instruction is not recommended: "option"
+0002   0062           00137         option
+Error[113]  : Symbol not previously defined: "start_a"
+0003   2800           00138         goto    start_a
+                      00139 
+                      00140 ; -----------------
+                      00141 ; interrupt handler
+                      00142 ; -----------------
+                      00143 ;;interrupt vectors to address 0x4
+Error[181]  : Attempt to use "local" outside of macro.
+  0004                00144 int     local
+0004   108B           00145         bcf     INTCON,1
+Message[1302]: RAM Bank undefined in this chunk of code. Ensure that bank bits are correct. Assuming bank 0 from now on.
+0005   00A0           00146         movwf   intw
+Error[127]  : Too many arguments.
+                      00147         swapfw  STATUS
+0006   00A0           00148         movwf   ints
+0007   1121           00149         bcf     recvd+1,2
+0008   1886           00150         btfsc   PORTB,1
+0009   1521           00151         bsf     recvd+1,2
+Message[305]: Using default destination of 1 (file).
+000A   0CA1           00152         rrf     recvd+1
+Message[305]: Using default destination of 1 (file).
+000B   0CA0           00153         rrf     recvd
+000C   16A0           00154         bsf     wdtp,5          ;clear packet bit shift watchdog
+Error[127]  : Too many arguments.
+                      00155         loop    =a,recvc
+Error[127]  : Too many arguments.
+                      00156         movlf   11,recvc
+000D   15A0           00157         bsf     flags,fbyte
+Error[127]  : Too many arguments.
+                      00158         movff   recvd,recvdt
+Error[1102]  : Parser error: syntax error
+                      00159 =a      swapfw  ints
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 16
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+000E   0083           00160         movwf   STATUS
+Message[305]: Using default destination of 1 (file).
+000F   0EA0           00161         swapf   intw
+Error[127]  : Too many arguments.
+                      00162         swapfw  intw
+0010   0009           00163         retfie
+Error[181]  : Unknown opcode: "endlocal"
+                      00164         endlocal
+                      00165 
+                      00166 ; ----------------------------
+                      00167 ; init PIC & mouse - continued
+                      00168 ; ----------------------------
+                      00169 
+Error[181]  : Attempt to use "local" outside of macro.
+  0011                00170 start_a local
+                      00171         if PIC16F87_STUFF
+                      00172         ;;Switch internal oscillator of LF87 to 4 MHZ
+                      00173         ;;See PIC16F87 datasheet for details about OSCCON (8Fh)
+0011   1303           00174         bcf     STATUS,RP1
+0012   1683           00175         bsf     STATUS,RP0 ;switch to bank 1 (0x80..0xff)
+0013   3060           00176         movlw   b'01100000' ;4 MHz
+Message[1302]: RAM Bank undefined in this chunk of code. Ensure that bank bits are correct. Assuming bank 0 from now on.
+0014   008F           00177         movwf   0x0f ;with bank1 = 0x8f
+                      00178         ;;you could monitor IOFS bit for freq stabilizes
+                      00179         ;;but maybe that is not needed, so let's go without doing it
+0015   3000           00180         movlw 0x00
+0016   009B           00181         movwf 0x1B; 0x9B ANSEL on F88 only. (Are using F87)
+                      00182         ;;disable PIC16F87 analog comparators (CMCON)
+0017   3007           00183         movlw   b'00000111'
+0018   009C           00184         movwf   0x1c ;with bank1 = 0x9c
+0019   1283           00185         bcf     STATUS,RP0; go back to bank 0
+                      00186         endif
+Error[127]  : Too many arguments.
+                      00187         movlf   0xff,0x1f
+001A   0185           00188         clrf    PORTA
+001B   0186           00189         clrf    PORTB
+001C   30FF           00190         movlw   b'11111111'
+Warning[224]: Use of this instruction is not recommended: "tris"
+001D   0065           00191         tris    PORTA
+Warning[224]: Use of this instruction is not recommended: "tris"
+001E   0066           00192         tris    PORTB
+Error[181]  : Unknown opcode: "endlocal"
+                      00193         endlocal
+                      00194 
+                      00195 ; clear RAM
+                      00196 
+Error[127]  : Too many arguments.
+                      00197         movlf   memstart,FSR
+001F   3C00           00198         sublw   mem_end
+0020   0180           00199 clearam clrf    INDF
+0021   0A84           00200         incf    FSR
+0022   3EFF           00201         addlw   0xff
+0023   1D03 2820      00202         bnz     clearam
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 17
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+Error[127]  : Too many arguments.
+                      00203         movlf   TRISB+0x80,FSR ;;INDF is now TRISB
+                      00204 
+                      00205 ; init variables
+                      00206 
+Error[127]  : Too many arguments.
+                      00207         movlf   24,wdtm
+Error[127]  : Too many arguments.
+                      00208         movlf   11,recvc
+                      00209 
+                      00210 ; delay before turn mouse on
+                      00211 
+Error[181]  : Attempt to use "local" outside of macro.
+  0025                00212         local
+Error[127]  : Too many arguments.
+                      00213         callw   delayms,0
+                      00214 
+                      00215 ; wait for mouse
+                      00216 
+0025   1000           00217         bcf     INDF,0          ;inhibit I/O
+0026   1480           00218         bsf     INDF,1
+Error[127]  : Too many arguments.
+                      00219         callw   delayms,50
+Error[127]  : Too many arguments.
+                      00220         callw   send,0xE8
+Error[127]  : Too many arguments.
+                      00221         callw   send,3
+Error[127]  : Too many arguments.
+                      00222         callw   send,0xE6
+Error[127]  : Too many arguments.
+                      00223         callw   send,0xE6
+Error[127]  : Too many arguments.
+                      00224         callw   send,0xE6
+Error[127]  : Too many arguments.
+                      00225         callw   send,0xE9
+Error[113]  : Symbol not previously defined: "bwait"
+0027   2000           00226         call    bwait           ;receive status byte
+Error[113]  : Symbol not previously defined: "bwait"
+0028   2000           00227         call    bwait           ;receive resolution (value ignored)
+Message[1302]: RAM Bank undefined in this chunk of code. Ensure that bank bits are correct. Assuming bank 0 from now on.
+0029   00A0           00228         movwf   temp1           ;0x33
+Error[113]  : Symbol not previously defined: "bwait"
+002A   2000           00229         call    bwait           ;receive reports per second
+002B   3C55           00230         sublw   0x55
+Error[1102]  : Parser error: syntax error
+                      00231         bnz     =ms
+Error[127]  : Too many arguments.
+                      00232         cmplf   0x33,temp1
+Error[1102]  : Parser error: syntax error
+                      00233         bnz     =ms
+Message[1302]: RAM Bank undefined in this chunk of code. Ensure that bank bits are correct. Assuming bank 0 from now on.
+002C   1520           00234         bsf     extflags,extnso
+Error[1102]  : Parser error: syntax error
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 18
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+                      00235         goto    =wheel
+Error[1102]  : Parser error: syntax error
+                      00236 =ms     call    testms          ;i.m.explorer compatible?
+Error[1102]  : Parser error: syntax error
+                      00237         bz      =h              ;yes
+002D   3C01           00238         sublw   1               ;intellimouse compatible?
+Error[1102]  : Parser error: syntax error
+                      00239         bnz     =i              ;no
+002E   1420           00240         bsf     extflags,ext200
+002F   211C           00241         call    testms          ;i.m.explorer compatible?
+                      00242         skipnz
+0030   1903               M         btfsc   STATUS,Z
+Error[1102]  : Parser error: syntax error
+                      00243 =h      bsf     extflags,extime ;i.m.explorer compatible
+Error[1102]  : Parser error: syntax error
+                      00244 =wheel  bsf     flags,fwheel    ;intellimouse compatible
+Error[1102]  : Parser error: syntax error
+                      00245 =i      callw   send,0xe8       ;set resolution
+Error[127]  : Too many arguments.
+                      00246         callw   send,3          ;8/mm
+Error[127]  : Too many arguments.
+                      00247         callw   send,0xe6       ;scaling 1:1
+Error[127]  : Too many arguments.
+                      00248         callw   send,0xf3       ;set 200fps
+Error[127]  : Too many arguments.
+                      00249         callw   send,200
+Error[127]  : Too many arguments.
+                      00250         callw   send,0xf4       ;enable mouse in streaming mode
+0031   2111           00251         call    cpoff
+Error[181]  : Unknown opcode: "endlocal"
+                      00252         endlocal
+                      00253 
+                      00254 ; -----------
+                      00255 ; check mouse
+                      00256 ; -----------
+                      00257 
+Error[127]  : Too many arguments.
+0032                  00258 m_check callw   send,0xE9
+0032   1803 2800      00259         bc      start           ;no response? init mouse again
+0034   3CFA           00260         sublw   0xFA            ;ACK?
+0035   1D03 2800      00261         bnz     start           ;no ACK - init mouse again...
+Error[113]  : Symbol not previously defined: "bwait"
+0037   2000           00262         call    bwait           ;receive status byte
+0038   1803 2800      00263         bc      start
+003A   3960           00264         andlw   b'01100000'     ;leave only stream & enable flags
+003B   3C20           00265         sublw   b'00100000'     ;must be stream and enabled
+003C   1D03 2800      00266         bnz     start
+Message[1302]: RAM Bank undefined in this chunk of code. Ensure that bank bits are correct. Assuming bank 0 from now on.
+003E   1A20           00267         btfsc   flags,fnores
+Error[113]  : Symbol not previously defined: "p_init"
+003F   2800           00268         goto    p_init
+Error[113]  : Symbol not previously defined: "bwait"
+0040   2000           00269         call    bwait           ;receive resolution (value ignored)
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 19
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+0041   1803 2849      00270         bc      nores           ;no resolution...
+Message[1302]: RAM Bank undefined in this chunk of code. Ensure that bank bits are correct. Assuming bank 0 from now on.
+0043   1AA0           00271         btfsc   flags,fnofps
+Error[113]  : Symbol not previously defined: "p_init"
+0044   2800           00272         goto    p_init
+Error[113]  : Symbol not previously defined: "bwait"
+0045   2000           00273         call    bwait           ;receive reports per second
+0046   1803 284A      00274         bc      nofps           ;no fps
+Error[113]  : Symbol not previously defined: "p_init"
+0048   2800           00275         goto    p_init
+                      00276 
+                      00277 ; no resolution & fps report
+                      00278 
+Message[1302]: RAM Bank undefined in this chunk of code. Ensure that bank bits are correct. Assuming bank 0 from now on.
+0049   1620           00279 nores   bsf     flags,fnores
+004A   16A0           00280 nofps   bsf     flags,fnofps
+                      00281 
+                      00282 ; ---------------------
+                      00283 ; sync serial port init
+                      00284 ; ---------------------
+                      00285 
+Error[181]  : Attempt to use "local" outside of macro.
+  004B                00286 p_init  local
+Error[127]  : Too many arguments.
+                      00287         movlf   3,recvb
+004B   1BA0           00288         btfsc   flags,fwheel
+Message[305]: Using default destination of 1 (file).
+004C   0AA0           00289         incf    recvb
+004D   01A0           00290         clrf    currbyte
+004E   0800           00291         movfw   INDF
+Error[127]  : Too many arguments.
+                      00292         xorfw   PORTB
+004F   3904           00293         andlw   b'00000100'
+0050   1DA0           00294         btfss   extflags,extnof
+                      00295         skipnz
+0051   1903               M         btfsc   STATUS,Z
+Error[1102]  : Parser error: syntax error
+                      00296         goto    =b
+0052   1980           00297         btfsc   INDF,3 ;;RMB????
+Error[1102]  : Parser error: syntax error
+                      00298         goto    =a
+0053   15A0           00299         bsf     extflags,extnof
+Error[1102]  : Parser error: syntax error
+                      00300         goto    =b
+Error[1102]  : Parser error: syntax error
+                      00301 =a      bcf     flags,fon       ;mouse off
+                      00302 
+0054   30FF           00303         movlw   b'11111111'     ;buttons, wheels, XxYy off
+Warning[224]: Use of this instruction is not recommended: "tris"
+0055   0065           00304         tris    PORTA
+Warning[224]: Use of this instruction is not recommended: "tris"
+0056   0066           00305         tris    PORTB
+                      00306 
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 20
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+Error[1102]  : Parser error: syntax error
+                      00307 =b      bsf     INTCON,7        ;global interrupt enable
+0057   160B           00308         bsf     INTCON,4        ;enable RB0 interrupt
+Error[181]  : Unknown opcode: "endlocal"
+                      00309         endlocal
+                      00310 
+                      00311 ; check shift flag - byte received
+                      00312 
+0058   1DA0           00313 schk    btfss   flags,fbyte
+0059   2864           00314         goto    pchk1
+005A   11A0           00315         bcf     flags,fbyte
+005B   0820           00316         movfw   currbyte
+005C   3E20           00317         addlw   byte1
+005D   0084           00318         movwf   FSR
+Error[127]  : Too many arguments.
+                      00319         movff   recvdt,INDF
+Error[127]  : Too many arguments.
+                      00320         movlf   PORTB+0x80,FSR ;; FSR is now 0x86, _TRISB_!
+Message[305]: Using default destination of 1 (file).
+005E   0AA0           00321         incf    currbyte
+Error[127]  : Too many arguments.
+                      00322         loop    tchk,recvb
+Error[127]  : Too many arguments.
+                      00323         movlf   3,recvb
+005F   1BA0           00324         btfsc   flags,fwheel
+Message[305]: Using default destination of 1 (file).
+0060   0AA0           00325         incf    recvb
+0061   01A0           00326         clrf    currbyte
+0062   1420           00327         bsf     flags,fpkt1
+Error[127]  : Too many arguments.
+                      00328         movlf   24,wdtm
+0063   28BD           00329         goto    tchk
+                      00330 
+                      00331 ; check packet flag - packet received
+                      00332 
+Message[1302]: RAM Bank undefined in this chunk of code. Ensure that bank bits are correct. Assuming bank 0 from now on.
+0064   1C20           00333 pchk1   btfss   flags,fpkt1
+0065   287C           00334         goto    pchk2
+0066   1020           00335         bcf     flags,fpkt1
+0067   14A0           00336         bsf     flags,fpkt2
+0068   01A0           00337         clrf    xdir
+0069   3001           00338         movlw   1
+006A   1A20           00339         btfsc   byte1,4
+Warning[202]: Argument out of range. Least significant bits used. 597 (0x255) => 85 (0x55)
+006B   3055           00340         movlw   255
+Message[305]: Using default destination of 1 (file).
+006C   08A0           00341         movf    byte2
+006D   1D03           00342         btfss   STATUS,Z
+006E   00A0           00343         movwf   xdir
+006F   0820           00344         movfw   byte2
+0070   1A20           00345         btfsc   byte1,4
+0071   3C00           00346         sublw   0
+Error[127]  : Too many arguments.
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 21
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+                      00347         addfw   xdif
+0072   1803           00348         btfsc   STATUS,C
+Warning[202]: Argument out of range. Least significant bits used. 597 (0x255) => 85 (0x55)
+0073   3055           00349         movlw   255
+0074   00A0           00350         movwf   xdif
+0075   00A0           00351         movwf   xspeed
+Message[305]: Using default destination of 1 (file).
+0076   07A0           00352         addwf   xspeed
+                      00353         skipc
+0077   1C03               M         btfss   STATUS,C
+Message[305]: Using default destination of 1 (file).
+0078   07A0           00354         addwf   xspeed
+                      00355         skipc
+0079   1C03               M         btfss   STATUS,C
+007A   28BD           00356         goto    tchk
+Error[127]  : Too many arguments.
+                      00357         movlf   255,xspeed
+007B   28BD           00358         goto    tchk
+                      00359 
+Message[1302]: RAM Bank undefined in this chunk of code. Ensure that bank bits are correct. Assuming bank 0 from now on.
+007C   1CA0           00360 pchk2   btfss   flags,fpkt2
+007D   2894           00361         goto    pchk3
+007E   10A0           00362         bcf     flags,fpkt2
+007F   1520           00363         bsf     flags,fpkt3
+0080   01A0           00364         clrf    ydir
+0081   3001           00365         movlw   1
+0082   1AA0           00366         btfsc   byte1,5
+Warning[202]: Argument out of range. Least significant bits used. 597 (0x255) => 85 (0x55)
+0083   3055           00367         movlw   255
+Message[305]: Using default destination of 1 (file).
+0084   08A0           00368         movf    byte3
+0085   1D03           00369         btfss   STATUS,Z
+0086   00A0           00370         movwf   ydir
+0087   0820           00371         movfw   byte3
+0088   1AA0           00372         btfsc   byte1,5
+0089   3C00           00373         sublw   0
+Error[127]  : Too many arguments.
+                      00374         addfw   ydif
+008A   1803           00375         btfsc   STATUS,C
+Warning[202]: Argument out of range. Least significant bits used. 597 (0x255) => 85 (0x55)
+008B   3055           00376         movlw   255
+008C   00A0           00377         movwf   ydif
+008D   00A0           00378         movwf   yspeed
+Message[305]: Using default destination of 1 (file).
+008E   07A0           00379         addwf   yspeed
+                      00380         skipc
+008F   1C03               M         btfss   STATUS,C
+Message[305]: Using default destination of 1 (file).
+0090   07A0           00381         addwf   yspeed
+                      00382         skipc
+0091   1C03               M         btfss   STATUS,C
+0092   28BD           00383         goto    tchk
+Error[127]  : Too many arguments.
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 22
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+                      00384         movlf   255,yspeed
+0093   28BD           00385         goto    tchk
+                      00386 
+Message[1302]: RAM Bank undefined in this chunk of code. Ensure that bank bits are correct. Assuming bank 0 from now on.
+0094   1D20           00387 pchk3   btfss   flags,fpkt3
+0095   28BD           00388         goto    tchk
+0096   1120           00389         bcf     flags,fpkt3
+Error[127]  : Too many arguments.
+                      00390         rlfw    byte1
+0097   00A0           00391         movwf   temp1
+Message[305]: Using default destination of 1 (file).
+0098   0DA0           00392         rlf     temp1
+Error[127]  : Too many arguments.
+                      00393         comfw   temp1
+0099   391C           00394         andlw   b'00011100'
+Error[181]  : Attempt to use "local" outside of macro.
+  009A                00395         local
+009A   00A0           00396         movwf   temp1
+009B   3C1C           00397         sublw   b'00011100'
+                      00398         skipz
+009C   1D03               M         btfss   STATUS,Z
+009D   2111           00399         call    cpoff
+009E   1F20           00400         btfss   flags,fon
+Error[1102]  : Parser error: syntax error
+                      00401         goto    =c
+009F   0800           00402         movfw   INDF
+00A0   39E3           00403         andlw   b'11100011'
+Error[127]  : Too many arguments.
+                      00404         iorfw   temp1
+00A1   0080           00405         movwf   INDF;;TRISB
+                      00406         if      BOOSTRMB
+00A2   0384           00407         decf    FSR;;Get TRISA
+00A3   0800           00408         movfw   INDF
+00A4   0A84           00409         incf    FSR
+00A5   393F           00410         andlw   b'00111111'
+00A6   19A0           00411         btfsc   temp1,3 ;;RMB
+00A7   38C0           00412         iorlw   b'11000000'
+Warning[224]: Use of this instruction is not recommended: "tris"
+00A8   0065           00413         tris    PORTA
+                      00414         endif
+00A9   1FA0           00415         btfss   flags,fwheel
+Error[1102]  : Parser error: syntax error
+                      00416         goto    =c
+00AA   1D20           00417         btfss   extflags,extnso
+Error[1102]  : Parser error: syntax error
+                      00418         goto    =a
+                      00419 
+00AB   1B20           00420         btfsc   byte1,6
+00AC   1280           00421         bcf     INDF,5
+00AD   1F20           00422         btfss   byte1,6
+00AE   1680           00423         bsf     INDF,5
+00AF   1220           00424         bcf     extflags,extbut
+00B0   1BA0           00425         btfsc   byte1,7
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 23
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+00B1   1620           00426         bsf     extflags,extbut
+                      00427 
+Error[1102]  : Parser error: syntax error
+                      00428 =a      movfw   byte4
+00B2   1CA0           00429         btfss   extflags,extime
+Error[1102]  : Parser error: syntax error
+                      00430         goto    =b
+                      00431 
+00B3   1AA0           00432         btfsc   byte4,5
+00B4   1280           00433         bcf     INDF,5
+00B5   1EA0           00434         btfss   byte4,5
+00B6   1680           00435         bsf     INDF,5
+00B7   1220           00436         bcf     extflags,extbut
+00B8   1A20           00437         btfsc   byte4,4
+00B9   1620           00438         bsf     extflags,extbut
+                      00439 
+00BA   390F           00440         andlw   b'00001111'
+00BB   19A0           00441         btfsc   byte4,3
+00BC   38F0           00442         iorlw   b'11110000'
+Error[1102]  : Parser error: syntax error
+                      00443 =b      addwf   zdif
+Error[1102]  : Parser error: syntax error
+                      00444 =c      ;....
+Error[181]  : Unknown opcode: "endlocal"
+                      00445         endlocal
+                      00446 
+                      00447 ; check time to move
+                      00448 
+00BD   1F81           00449 tchk    btfss   RTCC,7
+00BE   2858           00450         goto    schk
+Error[127]  : Too many arguments.
+                      00451         sublf   SPEED,RTCC
+                      00452 
+                      00453 ; CPU watchdog
+                      00454 
+00BF   0064           00455         clrwdt
+                      00456 
+                      00457 ; check mouse
+                      00458 
+Error[127]  : Too many arguments.
+00C0                  00459 mchk    loop    xchk,wdtm+1
+Error[127]  : Too many arguments.
+                      00460         loop    xchk,wdtm
+Error[127]  : Too many arguments.
+                      00461         movlf   24,wdtm
+00C0   120B           00462         bcf     INTCON,4        ;disable RB0 interrupt
+00C1   0820           00463         movfw   recvb
+00C2   1BA0           00464         btfsc   flags,fwheel
+Warning[202]: Argument out of range. Least significant bits used. 597 (0x255) => 85 (0x55)
+00C3   3E55           00465         addlw   255
+00C4   3C03           00466         sublw   3               ;packet receive started?
+00C5   1D03           00467         btfss   STATUS,Z
+00C6   28CD           00468         goto    mchk_e          ;yes
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 24
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+00C7   0820           00469         movfw   recvc
+00C8   3C11           00470         sublw   11              ;byte receive started?
+00C9   1D03           00471         btfss   STATUS,Z
+00CA   28CD           00472         goto    mchk_e          ;yes
+00CB   1806           00473         btfsc   PORTB,0         ;bit receive started?
+00CC   2832           00474         goto    m_check         ;no
+00CD   160B           00475 mchk_e  bsf     INTCON,4        ;enable RB0 interrupt
+                      00476 
+                      00477 ; check X movement
+                      00478 
+00CE   0820           00479 xchk    movfw   xspeed
+Message[305]: Using default destination of 1 (file).
+00CF   07A1           00480         addwf   xspeed+1
+00D0   1C03           00481         btfss   STATUS,C
+00D1   28DB           00482         goto    ychk
+Message[305]: Using default destination of 1 (file).
+00D2   08A0           00483         movf    xdif
+00D3   1903           00484         btfsc   STATUS,Z
+00D4   28DB           00485         goto    ychk
+Message[305]: Using default destination of 1 (file).
+00D5   03A0           00486         decf    xdif
+00D6   0820           00487         movfw   xdir
+Message[305]: Using default destination of 1 (file).
+00D7   02A0           00488         subwf   xcount
+Error[127]  : Too many arguments.
+                      00489         rrfw    xcount
+00D8   3901           00490         andlw   1
+Error[127]  : Too many arguments.
+                      00491         xorfw   xcount
+00D9   3903           00492         andlw   3
+00DA   00A0           00493         movwf   xtemp
+                      00494 
+                      00495 ; check Y movement
+                      00496 
+00DB   0820           00497 ychk    movfw   yspeed
+Message[305]: Using default destination of 1 (file).
+00DC   07A1           00498         addwf   yspeed+1
+00DD   1C03           00499         btfss   STATUS,C
+Error[113]  : Symbol not previously defined: "zchk"
+00DE   2800           00500         goto    zchk
+Message[305]: Using default destination of 1 (file).
+00DF   08A0           00501         movf    ydif
+00E0   1903           00502         btfsc   STATUS,Z
+Error[113]  : Symbol not previously defined: "zchk"
+00E1   2800           00503         goto    zchk
+Message[305]: Using default destination of 1 (file).
+00E2   03A0           00504         decf    ydif
+00E3   0820           00505         movfw   ydir
+Message[305]: Using default destination of 1 (file).
+00E4   07A0           00506         addwf   ycount
+Error[127]  : Too many arguments.
+                      00507         rrfw    ycount
+00E5   3901           00508         andlw   1
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 25
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+Error[127]  : Too many arguments.
+                      00509         xorfw   ycount
+00E6   3903           00510         andlw   3
+00E7   00A0           00511         movwf   ytemp
+                      00512 
+                      00513 ; check wheel movement
+Error[181]  : Attempt to use "local" outside of macro.
+  00E8                00514 zchk    local
+00E8   19A0           00515         btfsc   extflags,extnof
+Error[1102]  : Parser error: syntax error
+                      00516         goto    =a
+                      00517 
+00E9   1A05           00518         btfsc   PORTA,4
+Error[1102]  : Parser error: syntax error
+                      00519         goto    =a
+00EA   0384           00520         decf    FSR
+00EB   0800           00521         movfw   INDF ;;read TRISA?
+00EC   0A84           00522         incf    FSR
+00ED   3910           00523         andlw   b'00010000' ;;TRISA4?
+00EE   1903           00524         btfsc   STATUS,Z
+Error[1102]  : Parser error: syntax error
+                      00525         goto    =a
+                      00526 
+Error[127]  : Too many arguments.
+                      00527         movlf   2,zcount
+00EF   1700           00528         bsf     INDF,6
+00F0   1780           00529         bsf     INDF,7
+00F1   01A0           00530         clrf    zdif
+Error[1102]  : Parser error: syntax error
+                      00531 =a      movf    zdif
+00F2   1903 2903      00532         bz      xyout
+00F4   3001           00533         movlw   1
+00F5   1FA0           00534         btfss   zdif,7
+00F6   3C00           00535         sublw   0
+Message[305]: Using default destination of 1 (file).
+00F7   07A0           00536         addwf   zdif
+Message[305]: Using default destination of 1 (file).
+00F8   07A0           00537         addwf   zcount
+Error[127]  : Too many arguments.
+                      00538         rrfw    zcount
+00F9   3901           00539         andlw   1
+Error[127]  : Too many arguments.
+                      00540         xorfw   zcount
+00FA   00A0           00541         movwf   temp1
+00FB   0800           00542         movfw   INDF ;; TRISB bits 6 and 7 are changed
+00FC   393F           00543         andlw   b'00111111'
+00FD   1820           00544         btfsc   temp1,0
+00FE   3840           00545         iorlw   b'01000000'
+00FF   18A0           00546         btfsc   temp1,1
+0100   3880           00547         iorlw   b'10000000'
+0101   1B20           00548         btfsc   flags,fon
+0102   0080           00549         movwf   INDF
+Error[181]  : Unknown opcode: "endlocal"
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 26
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+                      00550         endlocal
+                      00551 
+                      00552 ; XY movement out
+                      00553 
+0103   1003           00554 xyout   bcf     STATUS,C
+Error[127]  : Too many arguments.
+                      00555         rlfw    xtemp
+Error[127]  : Too many arguments.
+                      00556         addfw   xtemp
+Error[127]  : Too many arguments.
+                      00557         addfw   xtemp
+Error[127]  : Too many arguments.
+                      00558         iorfw   ytemp
+                      00559 
+0104   1E20           00560         btfss   extflags,extbut
+0105   3810           00561         iorlw   b'00010000'
+                      00562 
+                      00563         if      BOOSTRMB ;;
+0106   393F           00564         andlw   b'00111111'
+0107   1980           00565         btfsc   INDF,3 ;;RMB
+                      00566         endif   ;;next command will be skipped, if compiled with BOOSTRMB and TRISB3=0 (RMB presssssscio
+                            us)
+                      00567 
+0108   38C0           00568         iorlw   b'11000000'
+                      00569 
+0109   1B20           00570         btfsc   flags,fon
+Warning[224]: Use of this instruction is not recommended: "tris"
+010A   0065           00571         tris    PORTA
+                      00572 
+                      00573 ; packet bit shift watchdog
+                      00574 
+Error[181]  : Attempt to use "local" outside of macro.
+  010B                00575 wchk    local
+Error[127]  : Too many arguments.
+                      00576         loop    schk,wdtp
+010B   120B           00577         bcf     INTCON,4        ;disable RB0 interrupt
+Message[305]: Using default destination of 1 (file).
+010C   08A0           00578         movf    wdtp
+010D   1D03           00579         btfss   STATUS,Z
+Error[1102]  : Parser error: syntax error
+                      00580         goto    =a
+Error[127]  : Too many arguments.
+                      00581         movlf   11,recvc
+010E   16A0           00582         bsf     wdtp,5
+Error[113]  : Symbol not previously defined: "p_init"
+010F   2800           00583         goto    p_init
+Error[1102]  : Parser error: syntax error
+                      00584 =a      bsf     INTCON,4        ;enable RB0 interrupt
+0110   2858           00585         goto    schk
+Error[181]  : Unknown opcode: "endlocal"
+                      00586         endlocal
+                      00587 
+                      00588 ; check power off
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 27
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+                      00589 
+Message[1302]: RAM Bank undefined in this chunk of code. Ensure that bank bits are correct. Assuming bank 0 from now on.
+0111   1B20           00590 cpoff   btfsc   flags,fon
+0112   0008           00591         return
+Error[127]  : Too many arguments.
+                      00592         comfw   PORTA
+0113   390F           00593         andlw   b'00001111'
+0114   1903           00594         btfsc   STATUS,Z
+0115   1D06           00595         btfss   PORTB,2
+0116   0008           00596         return
+0117   1720           00597         bsf     flags,fon
+Error[127]  : Too many arguments.
+                      00598         movlf   3,xtemp
+0118   00A0           00599         movwf   ytemp
+Error[127]  : Too many arguments.
+                      00600         movlf   2,xcount
+0119   00A0           00601         movwf   ycount
+011A   00A0           00602         movwf   zcount
+011B   0008           00603         return
+                      00604 
+                      00605 ; try to switch to MS-like wheel mode
+                      00606 
+Error[127]  : Too many arguments.
+011C                  00607 testms  callw   send,0xf3
+Error[127]  : Too many arguments.
+                      00608         callw   send,200
+Error[127]  : Too many arguments.
+                      00609         callw   send,0xf3
+Warning[202]: Argument out of range. Least significant bits used. 256 (0x100) => 0 (0)
+011C   3000           00610         movlw   100
+Message[1302]: RAM Bank undefined in this chunk of code. Ensure that bank bits are correct. Assuming bank 0 from now on.
+011D   1820           00611         btfsc   extflags,ext200
+Warning[202]: Argument out of range. Least significant bits used. 512 (0x200) => 0 (0)
+011E   3000           00612         movlw   200
+Error[113]  : Symbol not previously defined: "send"
+011F   2000           00613         call    send
+Error[127]  : Too many arguments.
+                      00614         callw   send,0xf3
+Error[127]  : Too many arguments.
+                      00615         callw   send,80
+Error[127]  : Too many arguments.
+                      00616         callw   send,0xF2       ;read mouse ID
+Error[113]  : Symbol not previously defined: "bwait"
+0120   2000           00617         call    bwait
+0121   3C04           00618         sublw   4
+0122   0008           00619         return
+                      00620 
+                      00621 ; ------------------
+                      00622 ; send byte to mouse
+                      00623 ; ------------------
+                      00624 
+Error[181]  : Attempt to use "local" outside of macro.
+  0123                00625 send    local
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 28
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+0123   018B           00626         clrf    INTCON
+Message[1302]: RAM Bank undefined in this chunk of code. Ensure that bank bits are correct. Assuming bank 0 from now on.
+0124   00A0           00627         movwf   temp1
+0125   00A0           00628         movwf   sendata
+0126   01A0           00629         clrf    sendetc
+Message[305]: Using default destination of 1 (file).
+0127   09A0           00630         comf    sendetc
+0128   1000           00631         bcf     INDF,0          ;inhibit I/O
+Error[127]  : Too many arguments.
+                      00632         callw   delayus,100
+Error[127]  : Too many arguments.
+                      00633         movlf   8,count
+0129   3001           00634         movlw   1
+Error[1102]  : Parser error: syntax error
+                      00635 =a      rrf     temp1           ;calculate parity
+                      00636         skipnc
+012A   1803               M         btfsc   STATUS,C
+Message[305]: Using default destination of 1 (file).
+012B   06A0           00637         xorwf   sendetc
+Error[127]  : Too many arguments.
+                      00638         loop    =a,count
+Error[127]  : Too many arguments.
+                      00639         movlf   11,count
+012C   1400           00640         bsf     INDF,0
+012D   1080           00641         bcf     INDF,1          ;initiate send
+Error[1102]  : Parser error: syntax error
+                      00642 =b      clrwdt
+Error[1102]  : Parser error: syntax error
+                      00643 =c      btfsc   PORTB,0         ;wait for 0
+Error[1102]  : Parser error: syntax error
+                      00644         goto    =c
+Message[305]: Using default destination of 1 (file).
+012E   0CA0           00645         rrf     sendetc
+Message[305]: Using default destination of 1 (file).
+012F   0CA0           00646         rrf     sendata
+0130   1C03           00647         btfss   STATUS,C
+0131   1080           00648         bcf     INDF,1
+0132   1803           00649         btfsc   STATUS,C
+0133   1480           00650         bsf     INDF,1
+Error[1102]  : Parser error: syntax error
+                      00651 =d      btfss   PORTB,0         ;wait for 1
+Error[1102]  : Parser error: syntax error
+                      00652         goto    =d
+Error[127]  : Too many arguments.
+                      00653         loop    =b,count
+0134   018B           00654         clrf    INTCON
+Error[181]  : Unknown opcode: "endlocal"
+                      00655         endlocal
+                      00656         ; to be continued
+                      00657 
+                      00658 ; -----------------------
+                      00659 ; receive byte from mouse
+                      00660 ; -----------------------
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 29
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+                      00661 
+Error[181]  : Attempt to use "local" outside of macro.
+  0135                00662 bwait   local
+0135   178B           00663         bsf     INTCON,7        ;global interrupt enable
+0136   160B           00664         bsf     INTCON,4        ;enable RB0 interrupt
+Error[127]  : Too many arguments.
+                      00665         movlf   40,count
+Error[1102]  : Parser error: syntax error
+                      00666 =a      clrwdt
+Error[127]  : Too many arguments.
+                      00667         callw   delayus,100
+0137   1DA0           00668         btfss   flags,fbyte
+Error[1102]  : Parser error: syntax error
+                      00669         goto    =b
+0138   11A0           00670         bcf     flags,fbyte
+0139   0820           00671         movfw   recvdt
+013A   1003           00672         bcf     STATUS,C
+013B   0008           00673         return
+Error[1102]  : Parser error: syntax error
+                      00674 =b      loop    =a,count
+013C   1403           00675         setc
+013D   0008           00676         return
+Error[181]  : Unknown opcode: "endlocal"
+                      00677         endlocal
+                      00678 
+                      00679 ; ------
+                      00680 ; delays
+                      00681 ; ------
+                      00682 
+Error[181]  : Attempt to use "local" outside of macro.
+  013E                00683 delayms local
+Message[1302]: RAM Bank undefined in this chunk of code. Ensure that bank bits are correct. Assuming bank 0 from now on.
+013E   00A0           00684         movwf   count
+Error[1102]  : Parser error: syntax error
+                      00685 =a      clrwdt
+Warning[202]: Argument out of range. Least significant bits used. 585 (0x249) => 73 (0x49)
+013F   3049           00686         movlw   249
+Error[1102]  : Parser error: syntax error
+                      00687 =b      addlw   0xff
+Error[1102]  : Parser error: syntax error
+                      00688         bnz     =b
+Error[127]  : Too many arguments.
+                      00689         loop    =a,count
+0140   0008           00690         return
+Error[181]  : Unknown opcode: "endlocal"
+                      00691         endlocal
+                      00692 
+0141   3EFF           00693 delayus addlw   0xff
+0142   1D03 2941      00694         bnz     delayus
+0144   0008           00695         return
+                      00696 
+                      00697 ;;dprint        movwf   temp1
+                      00698 ;;      movlw   b'01111111'
+gpasm-1.5.0 #1285 (Sep 12 2016) ps2m-m03a.asm   9-28-2020  16:13:34         PAGE 30
+
+
+LOC    OBJECT CODE    LINE  SOURCE TEXT
+  VALUE
+
+                      00699 ;;      tris    PORTB
+                      00700 ;;      boostrmb ;;
+                      00701 ;;      movlw   9
+                      00702 ;;      movwf   count
+                      00703 ;;dp_a  clrwdt
+                      00704 ;;      btfsc   PORTB,6
+                      00705 ;;      goto    dp_a
+                      00706 ;;      movlw   b'01111111'
+                      00707 ;;      bsf     STATUS,C
+                      00708 ;;      rlf     temp1
+                      00709 ;;      btfsc   STATUS,C
+                      00710 ;;      movlw   b'11111111'
+                      00711 ;;      tris    PORTB
+                      00712 ;;      boostrmb ;;
+                      00713 ;;dp_b  clrwdt
+                      00714 ;;      btfss   PORTB,6
+                      00715 ;;      goto    dp_b
+                      00716 ;;      decfsz  count
+                      00717 ;;      goto    dp_a
+                      00718 ;;      return
+                      00719 
+                      00720 
+                      00721         end
+Error[181]  : Error generating hex file.
