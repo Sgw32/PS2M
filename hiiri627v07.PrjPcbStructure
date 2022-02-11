@@ -1,1 +1,5 @@
-Record=TopLevelDocument|FileName=hiiri627v07.SchDoc
+Record=TopLevelDocument|FileName=ps2m_toplevel.SchDoc
+Record=SheetSymbol|SourceDocument=ps2m_toplevel.SchDoc|Designator=hiiri627v0711|SchDesignator=Repeat(hiiri627v071,1,4)|FileName=hiiri627v071.SchDoc|SymbolType=Normal|RawFileName=hiiri627v071.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=ps2m_toplevel.SchDoc|Designator=hiiri627v0712|SchDesignator=Repeat(hiiri627v071,1,4)|FileName=hiiri627v071.SchDoc|SymbolType=Normal|RawFileName=hiiri627v071.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=ps2m_toplevel.SchDoc|Designator=hiiri627v0713|SchDesignator=Repeat(hiiri627v071,1,4)|FileName=hiiri627v071.SchDoc|SymbolType=Normal|RawFileName=hiiri627v071.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=ps2m_toplevel.SchDoc|Designator=hiiri627v0714|SchDesignator=Repeat(hiiri627v071,1,4)|FileName=hiiri627v071.SchDoc|SymbolType=Normal|RawFileName=hiiri627v071.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
