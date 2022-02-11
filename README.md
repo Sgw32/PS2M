@@ -1,5 +1,8 @@
 # PS2M Amiga mouse adapter
 
+
+** NEW: ATARI VERSION 
+
 Connect your good old laser PS/2 mouse to your Amiga Retro computer with this cheap and reliable adapter(and forget about non-usable old Amiga mouse)
 
 
