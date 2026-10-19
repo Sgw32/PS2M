@@ -1,5 +1,7 @@
 # PS2M Amiga mouse adapter
 
+## You can buy this item here:
+https://www.ebay.com/itm/407301065035
 
 ** NEW: ATARI VERSION 
 
